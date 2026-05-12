@@ -1,0 +1,88 @@
+import torch
+from PIL import Image
+import cv2
+
+from config.settings import QUERIES, HUMAN_QUERY_PROTOTYPES, HUMAN_QUERY_THRESHOLD
+
+
+def build_prompt_ensemble(query: str) -> list[str]:
+    """Generate a list of diverse prompts for a given query to improve CLIP robustness."""
+    return [
+        f"a photo of a {query}",
+        f"a road scene containing a {query}",
+        f"a cropped object that is a {query}",
+        f"a dashcam image of a {query}",
+    ]
+
+
+def encode_text_list(texts: list[str], clip_model, tokenizer, device: str) -> torch.Tensor:
+    with torch.no_grad():
+        tokens = tokenizer(texts).to(device)
+        features = clip_model.encode_text(tokens)
+        features = features / features.norm(dim=-1, keepdim=True)
+    return features
+
+
+def encode_text_mean(texts: list[str], clip_model, tokenizer, device: str) -> torch.Tensor:
+    """Encode a list of texts and return their normalized mean."""
+    feats = encode_text_list(texts, clip_model, tokenizer, device)
+    feat = feats.mean(dim=0, keepdim=True)
+    feat = feat / feat.norm(dim=-1, keepdim=True)
+    return feat
+
+
+def build_text_features(clip_model, tokenizer, device: str) -> dict:
+    """
+    Pre-calcola e mette in cache i feature vector testuali per ogni query.
+
+    Returns:
+        dict {query_str: tensor}
+    """
+    cache = {}
+    with torch.no_grad():
+        for query in QUERIES:
+            prompts = build_prompt_ensemble(query)
+            cache[query] = encode_text_mean(prompts, clip_model, tokenizer, device)
+    return cache
+
+
+def build_query_type_cache(clip_model, tokenizer, device: str) -> tuple[dict, torch.Tensor]:
+    """
+    Determina se ogni query è "human-like" confrontandola con i prototipi umani.
+
+    Returns:
+        (query_type_cache dict, human_prototype tensor)
+    """
+    human_proto = encode_text_mean(HUMAN_QUERY_PROTOTYPES, clip_model, tokenizer, device)
+    query_type_cache = {}
+    for query in QUERIES:
+        q_feat = encode_text_mean(build_prompt_ensemble(query), clip_model, tokenizer, device)
+        sim = float((q_feat @ human_proto.T).item())
+        query_type_cache[query] = {
+            "human_like_score": sim,
+            "is_human_like": sim >= HUMAN_QUERY_THRESHOLD,
+        }
+    return query_type_cache, human_proto
+
+
+def encode_crop(crop, clip_model, clip_preprocess, device: str) -> torch.Tensor:
+    """Codifica un'immagine crop (numpy BGR) in un feature vector CLIP normalizzato."""
+    crop_rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
+    image_tensor = clip_preprocess(Image.fromarray(crop_rgb)).unsqueeze(0).to(device)
+    with torch.no_grad():
+        feat = clip_model.encode_image(image_tensor)
+        feat = feat / feat.norm(dim=-1, keepdim=True)
+    return feat
+
+
+def compute_scores(image_feature: torch.Tensor, text_feature_cache: dict) -> dict:
+    """
+    Calcola la cosine similarity tra il feature visivo e tutti i feature testuali.
+
+    Returns:
+        dict {query_str: float_score}
+    """
+    return {
+        query: float((image_feature @ text_feature.T).item())
+        for query, text_feature in text_feature_cache.items()
+    }
