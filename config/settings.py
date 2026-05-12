@@ -1,5 +1,5 @@
 # ── I/O ─────────────────────────────────────────────────────────────────────
-INPUT_VIDEO  = "videos/ny_1_trim.mp4"
+INPUT_VIDEO  = "videos/ny_1_cut.mp4"
 OUTPUT_VIDEO = "outputs/output_crossing_open_vocab_seg.mp4"
 OUTPUT_JSON  = "outputs/output_crossing_open_vocab_seg.json"
 
@@ -11,17 +11,16 @@ QUERIES = [
 ]
 
 HUMAN_QUERY_PROTOTYPES = [
-    "person",
+    "cyclist",
+    "taxi",
     "pedestrian",
-    "human",
-    "a person walking",
-    "a pedestrian in a road scene",
-    "a human in a dashcam image",
+    "traffic lights",
+    "truck"
 ]
 HUMAN_QUERY_THRESHOLD = 0.85
 
 # ── Modelli ──────────────────────────────────────────────────────────────────
-YOLO_MODEL      = "runs/segment/train-2/weights/best.pt"
+YOLO_MODEL      = "yolo26m-finetuned-segmentation.pt"
 CLIP_MODEL      = "ViT-B-32"
 CLIP_PRETRAINED = "laion2b_s34b_b79k"
 TRACKER         = "botsort.yaml"   # or "bytetrack.yaml"
