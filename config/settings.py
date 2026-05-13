@@ -7,11 +7,10 @@ OUTPUT_JSON  = "outputs/output_crossing_open_vocab_seg.json"
 QUERIES = [
     "human",
     "bus",
-    "car",
-    "truck",
-    "stop sign",
-    "no parking"
+    "vehicle",
+    "no parking",
     "parking sign",
+    "traffic light",
 
 ]
 
@@ -26,7 +25,7 @@ HUMAN_QUERY_PROTOTYPES = [
 HUMAN_QUERY_THRESHOLD = 0.85
 
 # ── Modelli ──────────────────────────────────────────────────────────────────
-YOLO_MODEL      = "runs/detect/train/weights/best.pt"
+YOLO_MODEL      = "runs/segment/train-2/weights/best.pt"
 TRAFFIC_SIGN_MODEL = "sign_detection_model_finetuned.pt"  
 CLIP_MODEL      = "ViT-B-32"
 CLIP_PRETRAINED = "laion2b_s34b_b79k"
@@ -34,7 +33,7 @@ TRACKER         = "botsort.yaml"   # or "bytetrack.yaml"
 
 # ── YOLO detection ───────────────────────────────────────────────────────────
 ROAD_CLASSES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-YOLO_CONF    = 0.30
+YOLO_CONF    = 0.26
 YOLO_IOU     = 0.45
 IMG_SIZE     = 640
 
@@ -107,7 +106,7 @@ TRAFFIC_SIGN_ROUTE_NEGATIVE_QUERIES = [
 ]
 
 # ── CLIP similarity ──────────────────────────────────────────────────────────
-CLIP_SIM_THRESHOLD    = 0.24
+CLIP_SIM_THRESHOLD    = 0.21
 CLIP_MARGIN_THRESHOLD = 0.035
 CLIP_NEGATIVE_MARGIN_THRESHOLD = 0.030
 CLIP_NEGATIVE_QUERIES = [
@@ -168,7 +167,7 @@ MIN_IN_ROAD_FRAMES          = 5
 DRAW_ALL                      = False
 DRAW_COUNTERS                 = True
 BOX_THICKNESS                 = 2
-VIS_MODE                      = "box"   # "box" | "mask" | "both"
+VIS_MODE                      = "mask"   # "box" | "mask" | "both"
 MASK_ALPHA                    = 0.45
 MASK_BORDER_THICKNESS         = 2
 DRAW_MASK_LABELS              = True
