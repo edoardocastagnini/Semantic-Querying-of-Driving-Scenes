@@ -3,8 +3,21 @@ import json
 
 from config.settings import (
     INPUT_VIDEO, OUTPUT_VIDEO, OUTPUT_JSON, QUERIES,
+    CLIP_SIM_THRESHOLD, CLIP_MARGIN_THRESHOLD, CLIP_NEGATIVE_MARGIN_THRESHOLD,
+    CLIP_NEGATIVE_QUERIES,
     VIS_MODE, MASK_ALPHA, USE_MASK_FOR_CLIP_CROP,
     ALLOW_MASK_REUSE_WHEN_MISSING, VISUAL_PERSIST_FRAMES, YOLO_MODEL,
+    TRAFFIC_SIGN_MODEL, TRAFFIC_SIGN_CLASSES, TRAFFIC_SIGN_CONF,
+    TRAFFIC_SIGN_IOU, TRAFFIC_SIGN_IMG_SIZE, DRAW_TRAFFIC_SIGNS,
+    TRAFFIC_SIGN_SMOOTHING_ENABLED, TRAFFIC_SIGN_BOX_EMA_KEEP,
+    TRAFFIC_SIGN_MIN_HITS_TO_DRAW, TRAFFIC_SIGN_VISUAL_PERSIST_FRAMES,
+    TRAFFIC_SIGN_MAX_TRACK_AGE, TRAFFIC_SIGN_MATCH_IOU,
+    TRAFFIC_SIGN_MATCH_CENTER_DIST, TRAFFIC_SIGN_ROUTE_MODE,
+    TRAFFIC_SIGN_ROUTE_SIM_THRESHOLD, TRAFFIC_SIGN_ROUTE_MARGIN_THRESHOLD,
+    TRAFFIC_SIGN_ROUTE_AMBIGUOUS_MARGIN, TRAFFIC_SIGN_ROUTE_TOP_K,
+    TRAFFIC_SIGN_ROUTE_SIGNLIKE_THRESHOLD, TRAFFIC_SIGN_ROUTE_GROUP_THRESHOLD,
+    TRAFFIC_SIGN_ROUTE_GROUP_MARGIN, TRAFFIC_SIGN_ROUTE_NEGATIVE_MARGIN,
+    TRAFFIC_SIGN_ROUTE_NEGATIVE_QUERIES,
     TRACKER, MAX_TRACK_AGE, KEEP_LOST_TRACKS_FOR,
     REID_MAX_CENTER_DIST, REID_MIN_IOU,
     MIN_FRAMES_TO_COUNT, MIN_MEAN_DET_CONF_FOR_COUNT,
@@ -17,19 +30,28 @@ from config.settings import (
 
 def build_summary(device: str, query_type_cache: dict,
                   frame_idx: int, fps_proc: float,
-                  counters: dict, tracks: dict) -> dict:
+                  counters: dict, tracks: dict,
+                  traffic_sign_frame_hits: dict | None = None,
+                  query_routing: dict | None = None) -> dict:
     """Builds a comprehensive summary dictionary of the processing run, including configuration, counters, and track states, ready to be serialized to JSON."""
     summary = {
         "input_video": INPUT_VIDEO,
         "output_video": OUTPUT_VIDEO,
         "device": device,
         "queries": QUERIES,
+        "query_routing": query_routing or {},
         "query_type_cache": {
             q: {
                 "human_like_score": float(query_type_cache[q]["human_like_score"]),
                 "is_human_like": bool(query_type_cache[q]["is_human_like"]),
             }
             for q in QUERIES
+        },
+        "clip_filter_config": {
+            "sim_threshold": CLIP_SIM_THRESHOLD,
+            "positive_margin_threshold": CLIP_MARGIN_THRESHOLD,
+            "negative_margin_threshold": CLIP_NEGATIVE_MARGIN_THRESHOLD,
+            "negative_queries": CLIP_NEGATIVE_QUERIES,
         },
         "count_mode": "stable_track_id_only_no_line",
         "crossing_motion_config": {
@@ -49,6 +71,31 @@ def build_summary(device: str, query_type_cache: dict,
             "visual_persist_frames": VISUAL_PERSIST_FRAMES,
             "model_path": YOLO_MODEL,
         },
+        "traffic_sign_detection_config": {
+            "model_path": TRAFFIC_SIGN_MODEL,
+            "selected_classes": TRAFFIC_SIGN_CLASSES,
+            "conf": TRAFFIC_SIGN_CONF,
+            "iou": TRAFFIC_SIGN_IOU,
+            "img_size": TRAFFIC_SIGN_IMG_SIZE,
+            "draw": DRAW_TRAFFIC_SIGNS,
+            "smoothing_enabled": TRAFFIC_SIGN_SMOOTHING_ENABLED,
+            "box_ema_keep": TRAFFIC_SIGN_BOX_EMA_KEEP,
+            "min_hits_to_draw": TRAFFIC_SIGN_MIN_HITS_TO_DRAW,
+            "visual_persist_frames": TRAFFIC_SIGN_VISUAL_PERSIST_FRAMES,
+            "max_track_age": TRAFFIC_SIGN_MAX_TRACK_AGE,
+            "match_iou": TRAFFIC_SIGN_MATCH_IOU,
+            "match_center_dist": TRAFFIC_SIGN_MATCH_CENTER_DIST,
+            "route_mode": TRAFFIC_SIGN_ROUTE_MODE,
+            "route_sim_threshold": TRAFFIC_SIGN_ROUTE_SIM_THRESHOLD,
+            "route_margin_threshold": TRAFFIC_SIGN_ROUTE_MARGIN_THRESHOLD,
+            "route_ambiguous_margin": TRAFFIC_SIGN_ROUTE_AMBIGUOUS_MARGIN,
+            "route_top_k": TRAFFIC_SIGN_ROUTE_TOP_K,
+            "route_signlike_threshold": TRAFFIC_SIGN_ROUTE_SIGNLIKE_THRESHOLD,
+            "route_group_threshold": TRAFFIC_SIGN_ROUTE_GROUP_THRESHOLD,
+            "route_group_margin": TRAFFIC_SIGN_ROUTE_GROUP_MARGIN,
+            "route_negative_margin": TRAFFIC_SIGN_ROUTE_NEGATIVE_MARGIN,
+            "route_negative_queries": TRAFFIC_SIGN_ROUTE_NEGATIVE_QUERIES,
+        },
         "tracking_config": {
             "tracker": TRACKER,
             "max_track_age": MAX_TRACK_AGE,
@@ -66,6 +113,9 @@ def build_summary(device: str, query_type_cache: dict,
         "frames_processed": frame_idx,
         "processing_fps": fps_proc,
         "counters": {q: int(counters[q]) for q in QUERIES},
+        "traffic_sign_frame_hits": {
+            str(k): int(v) for k, v in (traffic_sign_frame_hits or {}).items()
+        },
         "tracks": {},
     }
 

@@ -2,7 +2,10 @@ import torch
 from PIL import Image
 import cv2
 
-from config.settings import QUERIES, HUMAN_QUERY_PROTOTYPES, HUMAN_QUERY_THRESHOLD
+from config.settings import (
+    QUERIES, HUMAN_QUERY_PROTOTYPES, HUMAN_QUERY_THRESHOLD,
+    CLIP_NEGATIVE_QUERIES,
+)
 
 
 def build_prompt_ensemble(query: str) -> list[str]:
@@ -31,16 +34,33 @@ def encode_text_mean(texts: list[str], clip_model, tokenizer, device: str) -> to
     return feat
 
 
-def build_text_features(clip_model, tokenizer, device: str) -> dict:
+def build_text_features(clip_model, tokenizer, device: str,
+                        queries: list[str] | None = None) -> dict:
     """
     Pre-calcola e mette in cache i feature vector testuali per ogni query.
 
     Returns:
         dict {query_str: tensor}
     """
+    if queries is None:
+        queries = QUERIES
+
     cache = {}
     with torch.no_grad():
-        for query in QUERIES:
+        for query in queries:
+            prompts = build_prompt_ensemble(query)
+            cache[query] = encode_text_mean(prompts, clip_model, tokenizer, device)
+    return cache
+
+
+def build_negative_text_features(clip_model, tokenizer, device: str) -> dict:
+    """
+    Pre-computes CLIP text features for background/distractor prompts.
+    These are used only as rejection classes, never as output labels.
+    """
+    cache = {}
+    with torch.no_grad():
+        for query in CLIP_NEGATIVE_QUERIES:
             prompts = build_prompt_ensemble(query)
             cache[query] = encode_text_mean(prompts, clip_model, tokenizer, device)
     return cache

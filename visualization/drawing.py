@@ -71,6 +71,20 @@ def draw_visual(frame, xyxy, polygon_xy, label: str, color: tuple):
     return frame
 
 
+def draw_traffic_sign_detection(frame, xyxy, label: str, conf: float) -> None:
+    x1, y1, x2, y2 = [int(v) for v in xyxy]
+    color = (0, 200, 255)
+    cv2.rectangle(frame, (x1, y1), (x2, y2), color, BOX_THICKNESS)
+
+    text = f"sign: {label} {conf:.2f}"
+    (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.50, 2)
+    text_w = min(tw + 10, frame.shape[1] - x1)
+    top = max(0, y1 - th - 10)
+    cv2.rectangle(frame, (x1, top), (x1 + text_w, y1), color, -1)
+    cv2.putText(frame, text, (x1 + 5, y1 - 5),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.50, (20, 20, 20), 2, cv2.LINE_AA)
+
+
 def draw_counters(frame, counters: dict) -> None:
     h, w = frame.shape[:2]
     panel_h = 60 + 26 * len(QUERIES)

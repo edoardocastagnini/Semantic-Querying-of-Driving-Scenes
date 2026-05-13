@@ -1,26 +1,33 @@
 # ── I/O ─────────────────────────────────────────────────────────────────────
-INPUT_VIDEO  = "videos/ny_1_cut.mp4"
+INPUT_VIDEO  = "videos/input.mp4"
 OUTPUT_VIDEO = "outputs/output_crossing_open_vocab_seg.mp4"
 OUTPUT_JSON  = "outputs/output_crossing_open_vocab_seg.json"
 
 # ── Query semantiche CLIP ────────────────────────────────────────────────────
 QUERIES = [
-    "person",
+    "human",
     "bus",
-    "truck"
+    "car",
+    "truck",
+    "stop sign",
+    "no parking"
+    "parking sign",
+
 ]
 
 HUMAN_QUERY_PROTOTYPES = [
-    "cyclist",
-    "taxi",
+    "person",
     "pedestrian",
-    "traffic lights",
-    "truck"
+    "human",
+    "a person walking",
+    "a pedestrian in a road scene",
+    "a human in a dashcam image",
 ]
 HUMAN_QUERY_THRESHOLD = 0.85
 
 # ── Modelli ──────────────────────────────────────────────────────────────────
-YOLO_MODEL      = "yolo26m-finetuned-segmentation.pt"
+YOLO_MODEL      = "runs/detect/train/weights/best.pt"
+TRAFFIC_SIGN_MODEL = "sign_detection_model_finetuned.pt"  
 CLIP_MODEL      = "ViT-B-32"
 CLIP_PRETRAINED = "laion2b_s34b_b79k"
 TRACKER         = "botsort.yaml"   # or "bytetrack.yaml"
@@ -31,9 +38,87 @@ YOLO_CONF    = 0.30
 YOLO_IOU     = 0.45
 IMG_SIZE     = 640
 
+# ── Traffic sign YOLO detection ──────────────────────────────────────────────
+TRAFFIC_SIGN_CLASS_NAMES = {
+    0: "Green Light",
+    1: "Red Light",
+    2: "Speed Limit 20",
+    3: "Speed Limit 30",
+    4: "Speed Limit 40",
+    5: "Speed Limit 50",
+    6: "Speed Limit 60",
+    7: "Speed Limit 70",
+    8: "Speed Limit 80",
+    9: "Speed Limit 90",
+    10: "Speed Limit 100",
+    11: "Speed Limit 110",
+    12: "Speed Limit 120",
+    13: "Stop",
+    14: "all",
+    15: "crosswalk",
+    16: "Pedestrians crossing",
+    17: "One way",
+    18: "Roundabout",
+    19: "No entry",
+    20: "No parking",
+    21: "No stopping",
+    22: "Yield",
+    23: "Priority road",
+    24: "No turn",
+    25: "Parking",
+}
+
+# Seleziona una o piu classi cartelli. Accetta id interi o nomi esatti.
+# Esempi: [13, 22, "Speed Limit 50"] oppure [] per tutte le classi.
+TRAFFIC_SIGN_CLASSES = [0,1, 13, 25, 24, 20, 16]
+TRAFFIC_SIGN_CONF    = 0.25
+TRAFFIC_SIGN_IOU     = 0.45
+TRAFFIC_SIGN_IMG_SIZE = 640
+DRAW_TRAFFIC_SIGNS   = True
+TRAFFIC_SIGN_SMOOTHING_ENABLED = True
+TRAFFIC_SIGN_BOX_EMA_KEEP = 0.65
+TRAFFIC_SIGN_MIN_HITS_TO_DRAW = 2
+TRAFFIC_SIGN_VISUAL_PERSIST_FRAMES = 6
+TRAFFIC_SIGN_MAX_TRACK_AGE = 12
+TRAFFIC_SIGN_MATCH_IOU = 0.15
+TRAFFIC_SIGN_MATCH_CENTER_DIST = 0.035
+TRAFFIC_SIGN_ROUTE_MODE = "clip"  # "clip" | "aliases"
+TRAFFIC_SIGN_ROUTE_SIM_THRESHOLD = 0.72
+TRAFFIC_SIGN_ROUTE_MARGIN_THRESHOLD = 0.035
+TRAFFIC_SIGN_ROUTE_AMBIGUOUS_MARGIN = 0.030
+TRAFFIC_SIGN_ROUTE_TOP_K = 3
+TRAFFIC_SIGN_ROUTE_GROUP_THRESHOLD = 0.76
+TRAFFIC_SIGN_ROUTE_SIGNLIKE_THRESHOLD = 0.64
+TRAFFIC_SIGN_ROUTE_GROUP_MARGIN = 0.030
+TRAFFIC_SIGN_ROUTE_NEGATIVE_MARGIN = 0.020
+TRAFFIC_SIGN_ROUTE_NEGATIVE_QUERIES = [
+    "human",
+    "person",
+    "pedestrian",
+    "bus",
+    "car",
+    "vehicle",
+    "truck",
+    "motorcycle",
+    "bicycle",
+    "road",
+    "building",
+    "tree",
+]
+
 # ── CLIP similarity ──────────────────────────────────────────────────────────
-CLIP_SIM_THRESHOLD    = 0.26
+CLIP_SIM_THRESHOLD    = 0.24
 CLIP_MARGIN_THRESHOLD = 0.035
+CLIP_NEGATIVE_MARGIN_THRESHOLD = 0.030
+CLIP_NEGATIVE_QUERIES = [
+    "road surface",
+    "asphalt",
+    "shadow",
+    "road marking",
+    "tree",
+    "building",
+    "background clutter",
+]
 CLIP_INTERVAL         = 3       # compute CLIP features every N frames 
 EMA_KEEP              = 0.85    # exponential moving average for smoothing CLIP scores over time
 MIN_HITS              = 5       # minimum hits per track to be considered valid
@@ -83,7 +168,7 @@ MIN_IN_ROAD_FRAMES          = 5
 DRAW_ALL                      = False
 DRAW_COUNTERS                 = True
 BOX_THICKNESS                 = 2
-VIS_MODE                      = "mask"   # "box" | "mask" | "both"
+VIS_MODE                      = "box"   # "box" | "mask" | "both"
 MASK_ALPHA                    = 0.45
 MASK_BORDER_THICKNESS         = 2
 DRAW_MASK_LABELS              = True

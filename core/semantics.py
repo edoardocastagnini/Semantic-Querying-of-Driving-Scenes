@@ -2,7 +2,8 @@ import numpy as np
 from collections import defaultdict
 
 from config.settings import (
-    CLIP_SIM_THRESHOLD, CLIP_MARGIN_THRESHOLD, EMA_KEEP, MIN_HITS,
+    CLIP_SIM_THRESHOLD, CLIP_MARGIN_THRESHOLD, CLIP_NEGATIVE_MARGIN_THRESHOLD,
+    EMA_KEEP, MIN_HITS,
     MIN_FRAMES_TO_COUNT, MIN_MEAN_DET_CONF_FOR_COUNT,
     MIN_LABEL_DOMINANCE_FOR_COUNT, CONF_HISTORY_LEN,
     COUNT_COOLDOWN_FRAMES, COUNT_COOLDOWN_DIST,
@@ -10,7 +11,7 @@ from config.settings import (
 from core.geometry import normalized_center
 
 
-def is_valid_match(scores: dict) -> tuple[bool, str | None, float]:
+def is_valid_match(scores: dict, negative_scores: dict | None = None) -> tuple[bool, str | None, float]:
     """
     If scores is empty, returns False, None, -1.0.
     Otherwise, checks if the best score is above CLIP_SIM_THRESHOLD and sufficiently better than the second best.
@@ -25,6 +26,10 @@ def is_valid_match(scores: dict) -> tuple[bool, str | None, float]:
     if len(sorted_scores) > 1:
         second_score = sorted_scores[1][1]
         if best_score - second_score < CLIP_MARGIN_THRESHOLD:
+            return False, best_query, best_score
+    if negative_scores:
+        best_negative = max(negative_scores.values())
+        if best_score - best_negative < CLIP_NEGATIVE_MARGIN_THRESHOLD:
             return False, best_query, best_score
     return True, best_query, best_score
 
@@ -99,13 +104,13 @@ def maybe_count_track(state: dict, frame_w: int, frame_h: int,
 
 def update_semantics(state: dict, raw_scores: dict, frame_w: int, frame_h: int,
                      current_frame_idx: int, count_registry: dict,
-                     counters: dict) -> None:
+                     counters: dict, negative_scores: dict | None = None) -> None:
     """
     Update the semantic state of a track based on new CLIP raw scores. Applies exponential moving average to smooth scores,
     updates positive hit counts, and determines matched queries. Also tries to count the track if it becomes mature enough.
     """
     matched = []
-    is_valid, _, _ = is_valid_match(raw_scores)
+    is_valid, _, _ = is_valid_match(raw_scores, negative_scores=negative_scores)
 
     for query, raw_score in raw_scores.items():
         prev = state["ema_scores"].get(query, None)

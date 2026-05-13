@@ -6,17 +6,28 @@ from config.settings import (
     QUERIES, YOLO_CONF, YOLO_IOU, IMG_SIZE, TRACKER, ROAD_CLASSES,
     CLIP_INTERVAL, DRAW_ALL, DRAW_COUNTERS, VISUAL_PERSIST_FRAMES,
     ALLOW_MASK_REUSE_WHEN_MISSING, OUTPUT_VIDEO,
+    TRAFFIC_SIGN_CONF, TRAFFIC_SIGN_IOU, TRAFFIC_SIGN_IMG_SIZE,
+    DRAW_TRAFFIC_SIGNS, TRAFFIC_SIGN_SMOOTHING_ENABLED,
+    TRAFFIC_SIGN_ROUTE_MODE,
 )
 from models.loader import load_all_models
 from core.clip_utils import (
-    build_text_features, build_query_type_cache,
+    build_text_features, build_negative_text_features, build_query_type_cache,
     encode_crop, compute_scores,
 )
 from core.geometry import box_center, extract_semantic_crop
 from core.crossing import update_crossing_state
 from core.tracking import create_track_state, maybe_link_to_recent_lost, cleanup_tracks
 from core.semantics import update_semantics
-from visualization.drawing import draw_visual, draw_counters, color_from_id
+from core.traffic_signs import (
+    selected_traffic_sign_class_ids, traffic_sign_label,
+    make_traffic_sign_detection, update_traffic_sign_tracks,
+    build_traffic_sign_query_routes, build_clip_traffic_sign_query_routes,
+    traffic_sign_queries_for_class,
+)
+from visualization.drawing import (
+    draw_visual, draw_counters, color_from_id, draw_traffic_sign_detection,
+)
 from io_utils.video_io import setup_capture, setup_writer
 from io_utils.output_writer import build_summary, save_summary
 
@@ -26,17 +37,55 @@ from io_utils.output_writer import build_summary, save_summary
 models = load_all_models()
 device        = models["device"]
 yolo          = models["yolo"]
+traffic_sign_yolo = models["traffic_sign_yolo"]
 clip_model    = models["clip_model"]
 clip_preprocess = models["clip_preprocess"]
 tokenizer     = models["tokenizer"]
 
-text_feature_cache = build_text_features(clip_model, tokenizer, device)
+if TRAFFIC_SIGN_ROUTE_MODE == "clip":
+    traffic_sign_query_routes, traffic_sign_route_diagnostics = build_clip_traffic_sign_query_routes(
+        QUERIES, clip_model, tokenizer, device
+    )
+elif TRAFFIC_SIGN_ROUTE_MODE == "aliases":
+    traffic_sign_query_routes = build_traffic_sign_query_routes(QUERIES)
+    traffic_sign_route_diagnostics = {}
+else:
+    raise ValueError(f"Unknown TRAFFIC_SIGN_ROUTE_MODE: {TRAFFIC_SIGN_ROUTE_MODE}")
+main_clip_queries = [q for q in QUERIES if q not in traffic_sign_query_routes]
+
+text_feature_cache = build_text_features(clip_model, tokenizer, device, queries=main_clip_queries)
+negative_text_feature_cache = build_negative_text_features(clip_model, tokenizer, device)
 query_type_cache, _ = build_query_type_cache(clip_model, tokenizer, device)
 
 print("[INFO] Query semantic types:")
 for q in QUERIES:
     info = query_type_cache[q]
-    print(f"  - {q}: human_like={info['is_human_like']} (score={info['human_like_score']:.3f})")
+    route = "traffic-sign detector" if q in traffic_sign_query_routes else "main YOLO + CLIP"
+    print(f"  - {q}: route={route}, human_like={info['is_human_like']} (score={info['human_like_score']:.3f})")
+
+use_traffic_sign_detector = traffic_sign_yolo is not None and bool(traffic_sign_query_routes)
+traffic_sign_class_ids = (
+    selected_traffic_sign_class_ids(traffic_sign_query_routes)
+    if use_traffic_sign_detector else []
+)
+if traffic_sign_yolo is not None:
+    selected_msg = "disabled by queries" if not use_traffic_sign_detector else traffic_sign_class_ids
+    print(f"[INFO] Traffic sign classes: {selected_msg}")
+    print("[INFO] Traffic sign query routes:")
+    for query in QUERIES:
+        class_ids = traffic_sign_query_routes.get(query, [])
+        if not class_ids:
+            print(f"  - {query}: main detector")
+            continue
+        diag = traffic_sign_route_diagnostics.get(query, {})
+        reason = diag.get("route", TRAFFIC_SIGN_ROUTE_MODE)
+        best = diag.get("best_class_label", "-")
+        score = diag.get("best_class_score", 0.0)
+        margin = diag.get("class_margin", 0.0)
+        print(
+            f"  - {query}: classes={class_ids} reason={reason} "
+            f"best={best} score={score:.3f} margin={margin:.3f}"
+        )
 
 
 # ── VIDEO ───────────────────────────────────────────────────────────────
@@ -52,6 +101,8 @@ total_frames = video_info["total_frames"]
 
 tracks               = {}          # {track_id: state_dict}
 counters             = defaultdict(int)
+traffic_sign_frame_hits = defaultdict(int)
+traffic_sign_tracks = {"_next_id": 1}
 count_registry       = defaultdict(list)
 recently_lost_tracks = []
 frame_idx            = 0
@@ -68,6 +119,7 @@ while True:
         break
 
     frame_idx += 1
+    raw_frame = frame.copy()
 
     results = yolo.track(
         source=frame,
@@ -151,14 +203,15 @@ while True:
                         frame_idx - state["last_good_mask_frame"] <= VISUAL_PERSIST_FRAMES):
                     clip_polygon = state["last_good_mask_xy"]
 
-            if frame_idx % CLIP_INTERVAL == 0 or state["clip_updates"] == 0:
+            if text_feature_cache and (frame_idx % CLIP_INTERVAL == 0 or state["clip_updates"] == 0):
                 crop = extract_semantic_crop(frame, xyxy, polygon_xy=clip_polygon)
                 if crop is not None:
                     image_feature = encode_crop(crop, clip_model, clip_preprocess, device)
                     raw_scores = compute_scores(image_feature, text_feature_cache)
+                    negative_scores = compute_scores(image_feature, negative_text_feature_cache)
                     update_semantics(
                         state, raw_scores, width, height, frame_idx,
-                        count_registry, counters,
+                        count_registry, counters, negative_scores=negative_scores,
                     )
 
             # Label and color
@@ -225,6 +278,57 @@ while True:
 
             frame = draw_visual(frame, box, draw_poly, label, color)
 
+    # Parallel traffic-sign detector: independent from the main YOLO+CLIP tracking pipeline.
+    if use_traffic_sign_detector:
+        sign_detections = []
+        sign_results = traffic_sign_yolo.predict(
+            source=raw_frame,
+            classes=traffic_sign_class_ids,
+            conf=TRAFFIC_SIGN_CONF,
+            iou=TRAFFIC_SIGN_IOU,
+            device=device,
+            verbose=False,
+            half=(device == "cuda"),
+            imgsz=TRAFFIC_SIGN_IMG_SIZE,
+        )
+        sign_result = sign_results[0]
+        sign_boxes = sign_result.boxes
+        if sign_boxes is not None and len(sign_boxes) > 0:
+            sign_xyxy_list = sign_boxes.xyxy.cpu().numpy()
+            sign_cls_list = sign_boxes.cls.int().cpu().tolist()
+            sign_conf_list = sign_boxes.conf.cpu().tolist()
+
+            for xyxy, cls_id, det_conf in zip(sign_xyxy_list, sign_cls_list, sign_conf_list):
+                class_id = int(cls_id)
+                raw_label = traffic_sign_label(class_id, traffic_sign_yolo.names)
+                matched_queries = traffic_sign_queries_for_class(
+                    class_id, traffic_sign_query_routes, QUERIES
+                )
+                label = matched_queries[0] if matched_queries else raw_label
+                traffic_sign_frame_hits[raw_label] += 1
+                if TRAFFIC_SIGN_SMOOTHING_ENABLED:
+                    sign_detections.append(
+                        make_traffic_sign_detection(
+                            xyxy, class_id, float(det_conf), label,
+                            matched_queries=matched_queries,
+                        )
+                    )
+                elif DRAW_TRAFFIC_SIGNS:
+                    draw_traffic_sign_detection(frame, xyxy, label, float(det_conf))
+
+        if TRAFFIC_SIGN_SMOOTHING_ENABLED and DRAW_TRAFFIC_SIGNS:
+            visible_signs = update_traffic_sign_tracks(
+                sign_detections, traffic_sign_tracks, frame_idx, width, height
+            )
+            for sign in visible_signs:
+                for query in sign.get("matched_queries", []):
+                    if query not in sign["counted_queries"]:
+                        counters[query] += 1
+                        sign["counted_queries"].add(query)
+                draw_traffic_sign_detection(
+                    frame, sign["box"], sign["label"], float(sign["conf"])
+                )
+
     if DRAW_COUNTERS:
         draw_counters(frame, counters)
 
@@ -245,7 +349,17 @@ writer.release()
 elapsed  = time.time() - start_time
 fps_proc = frame_idx / max(elapsed, 1e-6)
 
-summary = build_summary(device, query_type_cache, frame_idx, fps_proc, counters, tracks)
+summary = build_summary(
+    device, query_type_cache, frame_idx, fps_proc, counters, tracks,
+    traffic_sign_frame_hits,
+    query_routing={
+        "mode": TRAFFIC_SIGN_ROUTE_MODE,
+        "traffic_sign_detector_enabled": use_traffic_sign_detector,
+        "main_yolo_clip_queries": main_clip_queries,
+        "traffic_sign_queries": traffic_sign_query_routes,
+        "traffic_sign_route_diagnostics": traffic_sign_route_diagnostics,
+    },
+)
 save_summary(summary)
 
 print("[INFO] Done.")
