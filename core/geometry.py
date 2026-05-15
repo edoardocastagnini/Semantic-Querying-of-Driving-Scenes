@@ -1,7 +1,10 @@
 import cv2
 import numpy as np
 
-from config.settings import CROP_PAD, MIN_CROP_AREA, USE_MASK_FOR_CLIP_CROP
+from config.settings import (
+    CROP_PAD, MIN_CROP_AREA, USE_MASK_FOR_CLIP_CROP,
+    CLIP_CONTEXT_NEUTRAL_COLOR,
+)
 
 
 def polygon_to_int_xy(polygon_xy) -> np.ndarray | None:
@@ -77,6 +80,21 @@ def extract_crop(frame, xyxy):
     return crop
 
 
+def padded_box_bounds(frame, xyxy):
+    """Returns padded box bounds [x1,y1,x2,y2] clipped to the frame."""
+    h, w = frame.shape[:2]
+    x1, y1, x2, y2 = [int(v) for v in xyxy]
+    bw, bh = x2 - x1, y2 - y1
+    if bw <= 1 or bh <= 1:
+        return None
+    px, py = int(bw * CROP_PAD), int(bh * CROP_PAD)
+    x1 = max(0, x1 - px); y1 = max(0, y1 - py)
+    x2 = min(w, x2 + px); y2 = min(h, y2 + py)
+    if x2 <= x1 or y2 <= y1:
+        return None
+    return [x1, y1, x2, y2]
+
+
 def extract_mask_crop(frame, polygon_xy):
     """Extract a masked crop using the segmentation polygon."""
     pts = polygon_to_int_xy(polygon_xy)
@@ -105,6 +123,64 @@ def extract_mask_crop(frame, polygon_xy):
     if masked_crop.size == 0 or masked_crop.shape[0] * masked_crop.shape[1] < MIN_CROP_AREA:
         return None
     return masked_crop
+
+
+def extract_clean_box_context_crop(frame, xyxy, all_polygons=None, det_idx=None):
+    """
+    Extracts a padded box crop and neutralizes all non-target segmentation masks
+    inside the crop. Background remains visible.
+    """
+    bounds = padded_box_bounds(frame, xyxy)
+    if bounds is None:
+        return None
+
+    x1, y1, x2, y2 = bounds
+    crop = frame[y1:y2, x1:x2].copy()
+    if crop.size == 0 or crop.shape[0] * crop.shape[1] < MIN_CROP_AREA:
+        return None
+
+    if all_polygons is None or det_idx is None:
+        return crop
+
+    for other_idx, polygon_xy in enumerate(all_polygons):
+        if other_idx == det_idx:
+            continue
+
+        pts = polygon_to_int_xy(polygon_xy)
+        if pts is None:
+            continue
+
+        shifted = pts.copy()
+        shifted[:, 0] -= x1
+        shifted[:, 1] -= y1
+
+        mask = np.zeros(crop.shape[:2], dtype=np.uint8)
+        cv2.fillPoly(mask, [shifted.reshape((-1, 1, 2))], 255)
+        crop[mask > 0] = CLIP_CONTEXT_NEUTRAL_COLOR
+
+    return crop
+
+
+def extract_clip_views(frame, xyxy, polygon_xy=None, all_polygons=None, det_idx=None):
+    """
+    Returns CLIP views for one detection:
+    - mask: segmented target object only
+    - clean_box_context: padded box with non-target masks neutralized
+    """
+    views = {}
+
+    if USE_MASK_FOR_CLIP_CROP and polygon_xy is not None:
+        mask_crop = extract_mask_crop(frame, polygon_xy)
+        if mask_crop is not None:
+            views["mask"] = mask_crop
+
+    context_crop = extract_clean_box_context_crop(
+        frame, xyxy, all_polygons=all_polygons, det_idx=det_idx
+    )
+    if context_crop is not None:
+        views["clean_box_context"] = context_crop
+
+    return views
 
 
 def extract_semantic_crop(frame, xyxy, polygon_xy=None):

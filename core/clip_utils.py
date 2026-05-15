@@ -1,6 +1,7 @@
 import torch
 from PIL import Image
 import cv2
+import numpy as np
 
 from config.settings import (
     QUERIES, HUMAN_QUERY_PROTOTYPES, HUMAN_QUERY_THRESHOLD,
@@ -106,3 +107,46 @@ def compute_scores(image_feature: torch.Tensor, text_feature_cache: dict) -> dic
         query: float((image_feature @ text_feature.T).item())
         for query, text_feature in text_feature_cache.items()
     }
+
+
+def combine_view_scores(view_scores: dict, view_weights: dict) -> dict:
+    """Combines per-view CLIP score dictionaries using normalized view weights."""
+    combined = {}
+    weights = {}
+
+    for view_name, scores in view_scores.items():
+        weight = float(view_weights.get(view_name, 0.0))
+        if weight <= 0:
+            continue
+
+        for query, score in scores.items():
+            combined[query] = combined.get(query, 0.0) + weight * float(score)
+            weights[query] = weights.get(query, 0.0) + weight
+
+    return {
+        query: combined[query] / weights[query]
+        for query in combined
+        if weights.get(query, 0.0) > 0
+    }
+
+
+def aggregate_score_window(score_window, method: str = "median") -> dict:
+    """Aggregates a short window of score dictionaries query by query."""
+    if not score_window:
+        return {}
+
+    queries = set()
+    for scores in score_window:
+        queries.update(scores.keys())
+
+    aggregated = {}
+    for query in queries:
+        values = [float(scores[query]) for scores in score_window if query in scores]
+        if not values:
+            continue
+        if method == "mean":
+            aggregated[query] = float(np.mean(values))
+        else:
+            aggregated[query] = float(np.median(values))
+
+    return aggregated

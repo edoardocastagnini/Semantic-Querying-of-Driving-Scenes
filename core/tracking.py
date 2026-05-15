@@ -3,7 +3,7 @@ from collections import defaultdict, deque
 from config.settings import (
     MAX_TRACK_AGE, KEEP_LOST_TRACKS_FOR,
     REID_MAX_CENTER_DIST, REID_MIN_IOU, REID_REQUIRE_SAME_QUERY,
-    HISTORY_LEN, CONF_HISTORY_LEN, QUERY_HISTORY_LEN,
+    HISTORY_LEN, CONF_HISTORY_LEN, QUERY_HISTORY_LEN, CLIP_TEMPORAL_WINDOW,
 )
 from core.geometry import center_distance_norm, box_iou
 
@@ -23,6 +23,15 @@ def create_track_state() -> dict:
         "detector_conf": 0.0,
         "ema_scores": {},
         "raw_scores": {},
+        "last_view_scores": {},
+        "last_negative_view_scores": {},
+        "last_combined_scores": {},
+        "last_clip_views_used": [],
+        "pending_clip_scores": deque(maxlen=CLIP_TEMPORAL_WINDOW),
+        "pending_negative_clip_scores": deque(maxlen=CLIP_TEMPORAL_WINDOW),
+        "last_temporal_scores": {},
+        "last_temporal_negative_scores": {},
+        "last_temporal_window_size": 0,
         "positive_hits": defaultdict(int),
         "matched_queries": [],
         "counted_queries": set(),

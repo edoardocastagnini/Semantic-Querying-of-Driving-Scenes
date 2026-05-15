@@ -10,7 +10,7 @@ import torch
 import open_clip
 from ultralytics import YOLO
 
-from config.settings import YOLO_MODEL, CLIP_MODEL, CLIP_PRETRAINED
+from config.settings import YOLO_MODEL, TRAFFIC_SIGN_MODEL, CLIP_MODEL, CLIP_PRETRAINED
 
 
 def get_device() -> str:
@@ -26,6 +26,14 @@ def load_yolo(device: str) -> YOLO:
     print("[INFO] Loading YOLO...")
     model = YOLO(YOLO_MODEL)
     return model
+
+
+def load_traffic_sign_yolo(device: str) -> YOLO | None:
+    """Loads the optional traffic-sign detector."""
+    if not TRAFFIC_SIGN_MODEL:
+        return None
+    print("[INFO] Loading traffic-sign YOLO...")
+    return YOLO(TRAFFIC_SIGN_MODEL)
 
 
 def load_clip(device: str):
@@ -57,10 +65,12 @@ def load_all_models():
     device = get_device()
     print(f"[INFO] Device: {device}")
     yolo = load_yolo(device)
+    traffic_sign_yolo = load_traffic_sign_yolo(device)
     clip_model, clip_preprocess, tokenizer = load_clip(device)
     return {
         "device": device,
         "yolo": yolo,
+        "traffic_sign_yolo": traffic_sign_yolo,
         "clip_model": clip_model,
         "clip_preprocess": clip_preprocess,
         "tokenizer": tokenizer,

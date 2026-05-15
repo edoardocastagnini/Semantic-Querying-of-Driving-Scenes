@@ -6,6 +6,9 @@ from config.settings import (
     QUERIES, YOLO_CONF, YOLO_IOU, IMG_SIZE, TRACKER, ROAD_CLASSES,
     CLIP_INTERVAL, DRAW_ALL, DRAW_COUNTERS, VISUAL_PERSIST_FRAMES,
     ALLOW_MASK_REUSE_WHEN_MISSING, OUTPUT_VIDEO,
+    CLIP_MULTI_VIEW_ENABLED, CLIP_VIEW_WEIGHTS,
+    CLIP_TEMPORAL_AGGREGATION_ENABLED, CLIP_TEMPORAL_WINDOW,
+    CLIP_TEMPORAL_AGGREGATION,
     TRAFFIC_SIGN_CONF, TRAFFIC_SIGN_IOU, TRAFFIC_SIGN_IMG_SIZE,
     DRAW_TRAFFIC_SIGNS, TRAFFIC_SIGN_SMOOTHING_ENABLED,
     TRAFFIC_SIGN_ROUTE_MODE,
@@ -13,9 +16,9 @@ from config.settings import (
 from models.loader import load_all_models
 from core.clip_utils import (
     build_text_features, build_negative_text_features, build_query_type_cache,
-    encode_crop, compute_scores,
+    encode_crop, compute_scores, combine_view_scores, aggregate_score_window,
 )
-from core.geometry import box_center, extract_semantic_crop
+from core.geometry import box_center, extract_semantic_crop, extract_clip_views
 from core.crossing import update_crossing_state
 from core.tracking import create_track_state, maybe_link_to_recent_lost, cleanup_tracks
 from core.semantics import update_semantics
@@ -204,14 +207,72 @@ while True:
                     clip_polygon = state["last_good_mask_xy"]
 
             if text_feature_cache and (frame_idx % CLIP_INTERVAL == 0 or state["clip_updates"] == 0):
-                crop = extract_semantic_crop(frame, xyxy, polygon_xy=clip_polygon)
-                if crop is not None:
+                if CLIP_MULTI_VIEW_ENABLED:
+                    views = extract_clip_views(
+                        frame,
+                        xyxy,
+                        polygon_xy=clip_polygon,
+                        all_polygons=mask_polygons,
+                        det_idx=det_idx,
+                    )
+                    view_scores = {}
+                    negative_view_scores = {}
+
+                    for view_name, crop in views.items():
+                        image_feature = encode_crop(crop, clip_model, clip_preprocess, device)
+                        view_scores[view_name] = compute_scores(image_feature, text_feature_cache)
+                        negative_view_scores[view_name] = compute_scores(
+                            image_feature, negative_text_feature_cache
+                        )
+
+                    raw_scores = combine_view_scores(view_scores, CLIP_VIEW_WEIGHTS)
+                    negative_scores = combine_view_scores(
+                        negative_view_scores, CLIP_VIEW_WEIGHTS
+                    )
+
+                    state["last_view_scores"] = view_scores
+                    state["last_negative_view_scores"] = negative_view_scores
+                    state["last_combined_scores"] = raw_scores
+                    state["last_clip_views_used"] = list(views.keys())
+                else:
+                    crop = extract_semantic_crop(frame, xyxy, polygon_xy=clip_polygon)
+                    if crop is None:
+                        continue
                     image_feature = encode_crop(crop, clip_model, clip_preprocess, device)
                     raw_scores = compute_scores(image_feature, text_feature_cache)
                     negative_scores = compute_scores(image_feature, negative_text_feature_cache)
+                    state["last_view_scores"] = {"single": raw_scores}
+                    state["last_negative_view_scores"] = {"single": negative_scores}
+                    state["last_combined_scores"] = raw_scores
+                    state["last_clip_views_used"] = ["single"]
+
+                if raw_scores and CLIP_TEMPORAL_AGGREGATION_ENABLED:
+                    state["pending_clip_scores"].append(raw_scores)
+                    state["pending_negative_clip_scores"].append(negative_scores)
+                    state["last_temporal_window_size"] = len(state["pending_clip_scores"])
+
+                    if len(state["pending_clip_scores"]) < CLIP_TEMPORAL_WINDOW:
+                        continue
+
+                    semantic_scores = aggregate_score_window(
+                        state["pending_clip_scores"], CLIP_TEMPORAL_AGGREGATION
+                    )
+                    semantic_negative_scores = aggregate_score_window(
+                        state["pending_negative_clip_scores"], CLIP_TEMPORAL_AGGREGATION
+                    )
+                    state["last_temporal_scores"] = semantic_scores
+                    state["last_temporal_negative_scores"] = semantic_negative_scores
+                    state["pending_clip_scores"].clear()
+                    state["pending_negative_clip_scores"].clear()
+                    state["last_temporal_window_size"] = 0
+                else:
+                    semantic_scores = raw_scores
+                    semantic_negative_scores = negative_scores
+
+                if semantic_scores:
                     update_semantics(
-                        state, raw_scores, width, height, frame_idx,
-                        count_registry, counters, negative_scores=negative_scores,
+                        state, semantic_scores, width, height, frame_idx,
+                        count_registry, counters, negative_scores=semantic_negative_scores,
                     )
 
             # Label and color

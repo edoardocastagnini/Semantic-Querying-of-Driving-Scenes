@@ -1,17 +1,15 @@
 # ── I/O ─────────────────────────────────────────────────────────────────────
-INPUT_VIDEO  = "videos/input.mp4"
+INPUT_VIDEO  = "videos/ny_camionetta.mp4"
 OUTPUT_VIDEO = "outputs/output_crossing_open_vocab_seg.mp4"
 OUTPUT_JSON  = "outputs/output_crossing_open_vocab_seg.json"
 
 # ── Query semantiche CLIP ────────────────────────────────────────────────────
 QUERIES = [
-    "human",
-    "bus",
-    "vehicle",
-    "no parking",
-    "parking sign",
+    "cyclist",
+    "work truck",
+    "taxi",
     "traffic light",
-
+    "a person transporting a briefcase"
 ]
 
 HUMAN_QUERY_PROTOTYPES = [
@@ -25,7 +23,7 @@ HUMAN_QUERY_PROTOTYPES = [
 HUMAN_QUERY_THRESHOLD = 0.85
 
 # ── Modelli ──────────────────────────────────────────────────────────────────
-YOLO_MODEL      = "runs/segment/train-2/weights/best.pt"
+YOLO_MODEL      = "train-segment/weights/best.pt"
 TRAFFIC_SIGN_MODEL = "sign_detection_model_finetuned.pt"  
 CLIP_MODEL      = "ViT-B-32"
 CLIP_PRETRAINED = "laion2b_s34b_b79k"
@@ -106,7 +104,7 @@ TRAFFIC_SIGN_ROUTE_NEGATIVE_QUERIES = [
 ]
 
 # ── CLIP similarity ──────────────────────────────────────────────────────────
-CLIP_SIM_THRESHOLD    = 0.21
+CLIP_SIM_THRESHOLD    = 0.27
 CLIP_MARGIN_THRESHOLD = 0.035
 CLIP_NEGATIVE_MARGIN_THRESHOLD = 0.030
 CLIP_NEGATIVE_QUERIES = [
@@ -120,7 +118,7 @@ CLIP_NEGATIVE_QUERIES = [
 ]
 CLIP_INTERVAL         = 3       # compute CLIP features every N frames 
 EMA_KEEP              = 0.85    # exponential moving average for smoothing CLIP scores over time
-MIN_HITS              = 5       # minimum hits per track to be considered valid
+MIN_HITS              = 3       # minimum hits per track to be considered valid
 
 # ── Tracking ─────────────────────────────────────────────────────────────────
 MIN_FRAMES_TO_COUNT = 15
@@ -143,9 +141,18 @@ CONF_HISTORY_LEN              = 20
 QUERY_HISTORY_LEN             = 20
 
 # ── Crop & mask ──────────────────────────────────────────────────────────────
-CROP_PAD               = 0.05
+CROP_PAD               = 0.01
 MIN_CROP_AREA          = 1600
 USE_MASK_FOR_CLIP_CROP = True
+CLIP_MULTI_VIEW_ENABLED = True
+CLIP_VIEW_WEIGHTS = {
+    "mask": 0.70,
+    "clean_box_context": 0.30,
+}
+CLIP_CONTEXT_NEUTRAL_COLOR = (114, 114, 114)
+CLIP_TEMPORAL_AGGREGATION_ENABLED = True
+CLIP_TEMPORAL_WINDOW = 3
+CLIP_TEMPORAL_AGGREGATION = "median"  # "median" | "mean"
 
 # ── Crossing detection ───────────────────────────────────────────────────────
 CENTER_BAND_X               = 0.26

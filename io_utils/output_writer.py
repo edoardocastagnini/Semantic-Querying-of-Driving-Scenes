@@ -4,7 +4,9 @@ import json
 from config.settings import (
     INPUT_VIDEO, OUTPUT_VIDEO, OUTPUT_JSON, QUERIES,
     CLIP_SIM_THRESHOLD, CLIP_MARGIN_THRESHOLD, CLIP_NEGATIVE_MARGIN_THRESHOLD,
-    CLIP_NEGATIVE_QUERIES,
+    CLIP_NEGATIVE_QUERIES, CLIP_MULTI_VIEW_ENABLED, CLIP_VIEW_WEIGHTS,
+    CLIP_CONTEXT_NEUTRAL_COLOR, CLIP_TEMPORAL_AGGREGATION_ENABLED,
+    CLIP_TEMPORAL_WINDOW, CLIP_TEMPORAL_AGGREGATION,
     VIS_MODE, MASK_ALPHA, USE_MASK_FOR_CLIP_CROP,
     ALLOW_MASK_REUSE_WHEN_MISSING, VISUAL_PERSIST_FRAMES, YOLO_MODEL,
     TRAFFIC_SIGN_MODEL, TRAFFIC_SIGN_CLASSES, TRAFFIC_SIGN_CONF,
@@ -26,6 +28,15 @@ from config.settings import (
     MIN_ABS_LATERAL_TRAVEL_BBOX, MIN_IN_ROAD_FRAMES,
     CROSSING_SCORE_ON, HISTORY_LEN,
 )
+
+
+def _float_nested_scores(scores: dict) -> dict:
+    return {
+        str(k): (
+            _float_nested_scores(v) if isinstance(v, dict) else float(v)
+        )
+        for k, v in scores.items()
+    }
 
 
 def build_summary(device: str, query_type_cache: dict,
@@ -52,6 +63,12 @@ def build_summary(device: str, query_type_cache: dict,
             "positive_margin_threshold": CLIP_MARGIN_THRESHOLD,
             "negative_margin_threshold": CLIP_NEGATIVE_MARGIN_THRESHOLD,
             "negative_queries": CLIP_NEGATIVE_QUERIES,
+            "multi_view_enabled": CLIP_MULTI_VIEW_ENABLED,
+            "view_weights": CLIP_VIEW_WEIGHTS,
+            "context_neutral_color": CLIP_CONTEXT_NEUTRAL_COLOR,
+            "temporal_aggregation_enabled": CLIP_TEMPORAL_AGGREGATION_ENABLED,
+            "temporal_window": CLIP_TEMPORAL_WINDOW,
+            "temporal_aggregation": CLIP_TEMPORAL_AGGREGATION,
         },
         "count_mode": "stable_track_id_only_no_line",
         "crossing_motion_config": {
@@ -131,6 +148,15 @@ def build_summary(device: str, query_type_cache: dict,
             "crossing_score": float(state["crossing_score"]),
             "counted_once": bool(state["counted_once"]),
             "ema_scores": {k: float(v) for k, v in state["ema_scores"].items()},
+            "last_clip_views_used": list(state.get("last_clip_views_used", [])),
+            "last_view_scores": _float_nested_scores(state.get("last_view_scores", {})),
+            "last_combined_scores": {
+                k: float(v) for k, v in state.get("last_combined_scores", {}).items()
+            },
+            "last_temporal_scores": {
+                k: float(v) for k, v in state.get("last_temporal_scores", {}).items()
+            },
+            "last_temporal_window_size": int(state.get("last_temporal_window_size", 0)),
             "last_box": state["last_box"],
             "last_mask_xy": state["last_mask_xy"],
         }
