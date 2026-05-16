@@ -1,14 +1,14 @@
 # ── I/O ─────────────────────────────────────────────────────────────────────
-INPUT_VIDEO  = "videos/ny_camionetta.mp4"
+INPUT_VIDEO  = "videos/ny_1_cut.mp4"
 OUTPUT_VIDEO = "outputs/output_crossing_open_vocab_seg.mp4"
 OUTPUT_JSON  = "outputs/output_crossing_open_vocab_seg.json"
 
 # ── Query semantiche CLIP ────────────────────────────────────────────────────
 QUERIES = [
-    "cyclist",
-    "work truck",
-    "taxi",
-    "traffic light",
+    "a cyclist on the road",
+    "a work truck",
+    "a classic new york taxi",
+    #"a traffic light",
     "a person transporting a briefcase"
 ]
 
@@ -24,7 +24,7 @@ HUMAN_QUERY_THRESHOLD = 0.85
 
 # ── Modelli ──────────────────────────────────────────────────────────────────
 YOLO_MODEL      = "train-segment/weights/best.pt"
-TRAFFIC_SIGN_MODEL = "sign_detection_model_finetuned.pt"  
+TRAFFIC_SIGN_MODEL = ""#"sign_detection_model_finetuned.pt"  
 CLIP_MODEL      = "ViT-B-32"
 CLIP_PRETRAINED = "laion2b_s34b_b79k"
 TRACKER         = "botsort.yaml"   # or "bytetrack.yaml"
@@ -141,18 +141,23 @@ CONF_HISTORY_LEN              = 20
 QUERY_HISTORY_LEN             = 20
 
 # ── Crop & mask ──────────────────────────────────────────────────────────────
-CROP_PAD               = 0.01
-MIN_CROP_AREA          = 1600
+CROP_PAD               = 0.1   # fallback bbox padding used by the single-crop path
+MASK_CROP_PAD          = 0.02  # tight padding around the segmentation-mask bbox
+CONTEXT_CROP_PAD       = 0.10  # wider padding around the YOLO bbox for CLIP context
+CONTEXT_OCCLUDER_PAD   = 0.00  # bbox padding that limits where non-target masks are blurred
+MIN_CROP_AREA          = 200   # reject crops smaller than this many pixels before CLIP
 USE_MASK_FOR_CLIP_CROP = True
 CLIP_MULTI_VIEW_ENABLED = True
 CLIP_VIEW_WEIGHTS = {
-    "mask": 0.70,
-    "clean_box_context": 0.30,
+    "mask": 0.75,
+    "clean_box_context": 0.25,
 }
 CLIP_CONTEXT_NEUTRAL_COLOR = (114, 114, 114)
+CLIP_CONTEXT_OCCLUDER_MODE = "blur"  # "blur" | "neutral"
+CLIP_CONTEXT_BLUR_KERNEL = 31
 CLIP_TEMPORAL_AGGREGATION_ENABLED = True
 CLIP_TEMPORAL_WINDOW = 3
-CLIP_TEMPORAL_AGGREGATION = "median"  # "median" | "mean"
+CLIP_TEMPORAL_AGGREGATION = "mean"  # "median" | "mean"
 
 # ── Crossing detection ───────────────────────────────────────────────────────
 CENTER_BAND_X               = 0.26
