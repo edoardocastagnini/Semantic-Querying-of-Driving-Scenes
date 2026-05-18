@@ -7,7 +7,7 @@ OUTPUT_JSON  = "outputs/output_crossing_open_vocab_seg.json"
 QUERIES = [
     "a child",
     "a work truck",
-    "a classic taxi",
+    "a classic new york taxi",
     "a cyclist",
     "a person dressed",
     "a work ladder"
@@ -105,8 +105,8 @@ TRAFFIC_SIGN_ROUTE_NEGATIVE_QUERIES = [
 ]
 
 # ── CLIP similarity ──────────────────────────────────────────────────────────
-CLIP_SIM_THRESHOLD    = 0.29
-CLIP_MARGIN_THRESHOLD = 0.03
+CLIP_SIM_THRESHOLD    = 0.28
+CLIP_MARGIN_THRESHOLD = 0.04
 CLIP_NEGATIVE_MARGIN_THRESHOLD = 0.030
 CLIP_NEGATIVE_QUERIES = [
     "road surface",
