@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 from config.settings import (
-    CROP_PAD, MASK_CROP_PAD, CONTEXT_CROP_PAD, CONTEXT_OCCLUDER_PAD,
+    CROP_PAD, MASK_CROP_PAD, CONTEXT_CROP_PAD,
     MIN_CROP_AREA, USE_MASK_FOR_CLIP_CROP,
     CLIP_CONTEXT_BLUR_KERNEL, CLIP_CONTEXT_NEUTRAL_COLOR,
     CLIP_CONTEXT_OCCLUDER_MODE,
@@ -138,12 +138,11 @@ def _valid_blur_kernel(value: int, max_size: int) -> int:
 def extract_clean_box_context_crop(frame, xyxy, all_polygons=None, det_idx=None):
     """
     Extracts a padded box crop and neutralizes all non-target segmentation masks
-    inside the crop. Background remains visible.
+    inside the whole padded context crop. Background remains visible.
     """
     bounds = padded_box_bounds(frame, xyxy, pad=CONTEXT_CROP_PAD)
     if bounds is None:
         return None
-    occluder_bounds = padded_box_bounds(frame, xyxy, pad=CONTEXT_OCCLUDER_PAD)
 
     x1, y1, x2, y2 = bounds
     crop = frame[y1:y2, x1:x2].copy()
@@ -153,17 +152,7 @@ def extract_clean_box_context_crop(frame, xyxy, all_polygons=None, det_idx=None)
     if all_polygons is None or det_idx is None:
         return crop
 
-    if occluder_bounds is None:
-        return crop
-
-    ox1, oy1, ox2, oy2 = occluder_bounds
-    ox1 = max(0, ox1 - x1); oy1 = max(0, oy1 - y1)
-    ox2 = min(crop.shape[1], ox2 - x1); oy2 = min(crop.shape[0], oy2 - y1)
-    if ox2 <= ox1 or oy2 <= oy1:
-        return crop
-
-    occluder_region = np.zeros(crop.shape[:2], dtype=np.uint8)
-    occluder_region[oy1:oy2, ox1:ox2] = 255
+    occluder_region = np.full(crop.shape[:2], 255, dtype=np.uint8)
     blurred_crop = None
 
     for other_idx, polygon_xy in enumerate(all_polygons):

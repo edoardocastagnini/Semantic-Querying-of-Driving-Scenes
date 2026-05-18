@@ -1,15 +1,16 @@
 # ── I/O ─────────────────────────────────────────────────────────────────────
-INPUT_VIDEO  = "videos/ny_1_cut.mp4"
+INPUT_VIDEO  = "videos/ny_3_cut.mp4"
 OUTPUT_VIDEO = "outputs/output_crossing_open_vocab_seg.mp4"
 OUTPUT_JSON  = "outputs/output_crossing_open_vocab_seg.json"
 
 # ── Query semantiche CLIP ────────────────────────────────────────────────────
 QUERIES = [
-    "a cyclist on the road",
+    "a child",
     "a work truck",
-    "a classic new york taxi",
-    #"a traffic light",
-    "a person transporting a briefcase"
+    "a classic taxi",
+    "a cyclist",
+    "a person dressed",
+    "a work ladder"
 ]
 
 HUMAN_QUERY_PROTOTYPES = [
@@ -104,8 +105,8 @@ TRAFFIC_SIGN_ROUTE_NEGATIVE_QUERIES = [
 ]
 
 # ── CLIP similarity ──────────────────────────────────────────────────────────
-CLIP_SIM_THRESHOLD    = 0.27
-CLIP_MARGIN_THRESHOLD = 0.035
+CLIP_SIM_THRESHOLD    = 0.29
+CLIP_MARGIN_THRESHOLD = 0.03
 CLIP_NEGATIVE_MARGIN_THRESHOLD = 0.030
 CLIP_NEGATIVE_QUERIES = [
     "road surface",
@@ -116,9 +117,9 @@ CLIP_NEGATIVE_QUERIES = [
     "building",
     "background clutter",
 ]
-CLIP_INTERVAL         = 3       # compute CLIP features every N frames 
-EMA_KEEP              = 0.85    # exponential moving average for smoothing CLIP scores over time
-MIN_HITS              = 3       # minimum hits per track to be considered valid
+CLIP_INTERVAL         = 3       # compute CLIP features every N frames
+EMA_KEEP              = 0.0     # no EMA inertia: use the aggregated CLIP score directly
+MIN_HITS              = 1      # one valid aggregated temporal decision confirms the label
 
 # ── Tracking ─────────────────────────────────────────────────────────────────
 MIN_FRAMES_TO_COUNT = 15
@@ -143,20 +144,19 @@ QUERY_HISTORY_LEN             = 20
 # ── Crop & mask ──────────────────────────────────────────────────────────────
 CROP_PAD               = 0.1   # fallback bbox padding used by the single-crop path
 MASK_CROP_PAD          = 0.02  # tight padding around the segmentation-mask bbox
-CONTEXT_CROP_PAD       = 0.10  # wider padding around the YOLO bbox for CLIP context
-CONTEXT_OCCLUDER_PAD   = 0.00  # bbox padding that limits where non-target masks are blurred
-MIN_CROP_AREA          = 200   # reject crops smaller than this many pixels before CLIP
+CONTEXT_CROP_PAD       = 0.15  # wider padding around the YOLO bbox for CLIP context
+MIN_CROP_AREA          = 1   # reject crops smaller than this many pixels before CLIP
 USE_MASK_FOR_CLIP_CROP = True
 CLIP_MULTI_VIEW_ENABLED = True
 CLIP_VIEW_WEIGHTS = {
-    "mask": 0.75,
-    "clean_box_context": 0.25,
+    "mask": 0.65,
+    "clean_box_context": 0.35,
 }
 CLIP_CONTEXT_NEUTRAL_COLOR = (114, 114, 114)
 CLIP_CONTEXT_OCCLUDER_MODE = "blur"  # "blur" | "neutral"
 CLIP_CONTEXT_BLUR_KERNEL = 31
 CLIP_TEMPORAL_AGGREGATION_ENABLED = True
-CLIP_TEMPORAL_WINDOW = 3
+CLIP_TEMPORAL_WINDOW = 4
 CLIP_TEMPORAL_AGGREGATION = "mean"  # "median" | "mean"
 
 # ── Crossing detection ───────────────────────────────────────────────────────
@@ -181,7 +181,7 @@ DRAW_COUNTERS                 = True
 BOX_THICKNESS                 = 2
 VIS_MODE                      = "mask"   # "box" | "mask" | "both"
 MASK_ALPHA                    = 0.45
-MASK_BORDER_THICKNESS         = 2
+MASK_BORDER_THICKNESS         = 1
 DRAW_MASK_LABELS              = True
 VISUAL_PERSIST_FRAMES         = 4
 ALLOW_MASK_REUSE_WHEN_MISSING = True

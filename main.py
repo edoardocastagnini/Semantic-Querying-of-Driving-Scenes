@@ -246,25 +246,26 @@ while True:
                     state["last_combined_scores"] = raw_scores
                     state["last_clip_views_used"] = ["single"]
 
+                semantic_scores = None
+                semantic_negative_scores = None
+
                 if raw_scores and CLIP_TEMPORAL_AGGREGATION_ENABLED:
                     state["pending_clip_scores"].append(raw_scores)
                     state["pending_negative_clip_scores"].append(negative_scores)
                     state["last_temporal_window_size"] = len(state["pending_clip_scores"])
 
-                    if len(state["pending_clip_scores"]) < CLIP_TEMPORAL_WINDOW:
-                        continue
-
-                    semantic_scores = aggregate_score_window(
-                        state["pending_clip_scores"], CLIP_TEMPORAL_AGGREGATION
-                    )
-                    semantic_negative_scores = aggregate_score_window(
-                        state["pending_negative_clip_scores"], CLIP_TEMPORAL_AGGREGATION
-                    )
-                    state["last_temporal_scores"] = semantic_scores
-                    state["last_temporal_negative_scores"] = semantic_negative_scores
-                    state["pending_clip_scores"].clear()
-                    state["pending_negative_clip_scores"].clear()
-                    state["last_temporal_window_size"] = 0
+                    if len(state["pending_clip_scores"]) >= CLIP_TEMPORAL_WINDOW:
+                        semantic_scores = aggregate_score_window(
+                            state["pending_clip_scores"], CLIP_TEMPORAL_AGGREGATION
+                        )
+                        semantic_negative_scores = aggregate_score_window(
+                            state["pending_negative_clip_scores"], CLIP_TEMPORAL_AGGREGATION
+                        )
+                        state["last_temporal_scores"] = semantic_scores
+                        state["last_temporal_negative_scores"] = semantic_negative_scores
+                        state["pending_clip_scores"].clear()
+                        state["pending_negative_clip_scores"].clear()
+                        state["last_temporal_window_size"] = 0
                 else:
                     semantic_scores = raw_scores
                     semantic_negative_scores = negative_scores
