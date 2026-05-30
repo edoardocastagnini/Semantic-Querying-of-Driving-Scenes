@@ -5,12 +5,9 @@ OUTPUT_JSON  = "outputs/output_crossing_open_vocab_seg.json"
 
 # ── CLIP semantic queries ────────────────────────────────────────────────────
 QUERIES = [
-    "a child",
     "a work truck",
     "a classic new york taxi",
-    "a cyclist",
-    "a person dressed",
-    "a work ladder"
+    "a pedestrian"
 ]
 
 HUMAN_QUERY_PROTOTYPES = [
@@ -25,10 +22,10 @@ HUMAN_QUERY_THRESHOLD = 0.85
 
 # ── Models ──────────────────────────────────────────────────────────────────
 YOLO_MODEL      = "train-segment/weights/best.pt"
-TRAFFIC_SIGN_MODEL = ""#"sign_detection_model_finetuned.pt"  
+TRAFFIC_SIGN_MODEL = "sign_detection_model_finetuned.pt"  
 CLIP_MODEL      = "ViT-B-32"
 CLIP_PRETRAINED = "laion2b_s34b_b79k"
-TRACKER         = "botsort.yaml"   # or "bytetrack.yaml"
+TRACKER         = "botsort.yaml" 
 
 # ── YOLO detection ───────────────────────────────────────────────────────────
 ROAD_CLASSES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
@@ -66,9 +63,8 @@ TRAFFIC_SIGN_CLASS_NAMES = {
     25: "Parking",
 }
 
-# Select one or more sign classes, either by their ID or the class name.
-# Exmaple: [13, 22, "Speed Limit 50"] or [] for all the classes.
-TRAFFIC_SIGN_CLASSES = [0,1, 13, 25, 24, 20, 16]
+
+TRAFFIC_SIGN_CLASSES = []
 TRAFFIC_SIGN_CONF    = 0.25
 TRAFFIC_SIGN_IOU     = 0.45
 TRAFFIC_SIGN_IMG_SIZE = 640
@@ -105,7 +101,7 @@ TRAFFIC_SIGN_ROUTE_NEGATIVE_QUERIES = [
 ]
 
 # ── CLIP similarity ──────────────────────────────────────────────────────────
-CLIP_SIM_THRESHOLD    = 0.28
+CLIP_SIM_THRESHOLD    = 0.26
 CLIP_MARGIN_THRESHOLD = 0.04
 CLIP_NEGATIVE_MARGIN_THRESHOLD = 0.030
 CLIP_NEGATIVE_QUERIES = [
