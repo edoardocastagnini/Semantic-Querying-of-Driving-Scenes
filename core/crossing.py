@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+"""
+core/crossing.py
+================
+Functions handling the logic for pedestrian crossing.
+"""
+
 import numpy as np
 
 from config.settings import (
@@ -11,12 +18,30 @@ from config.settings import (
 
 
 def in_road_zone(cx_norm: float, cy_norm: float) -> bool:
-    """True if the normalized center is in the central zone of the road."""
+    """
+    Determines, whether the normalized center is in the central zone of the road.
+
+    Parameters:
+        cx_norm (float): central x coordinate
+        cy_norm (float): central y coordinate
+
+    Returns:
+        bool: True if the normalized center is in the central zone of the road.
+    """
     return ROAD_Y_MIN <= cy_norm <= ROAD_Y_MAX and abs(cx_norm - 0.5) <= CENTER_BAND_X
 
 
 def compute_mean_velocity(pts: list) -> tuple[float, float]:
-    """Calculate the mean velocity (vx, vy) from the position history."""
+    """
+    Calculate the mean velocity (vx, vy) from the position history.
+    
+    Parameters:
+        pts (list): position history
+
+    Returns:
+        (float, float): mean x velocity, mean y velocity
+    """
+
     if len(pts) < 2:
         return 0.0, 0.0
     vx_list = [pts[i][0] - pts[i - 1][0] for i in range(1, len(pts))]
@@ -27,7 +52,12 @@ def compute_mean_velocity(pts: list) -> tuple[float, float]:
 def update_crossing_state(state: dict, frame_shape: tuple) -> None:
     """
     Update the crossing state of a track based on its movement and position history.
+
+    Parameters:
+        state (dict): current state
+        frame_shape (tuple): height, width
     """
+
     if len(state["center_history"]) < MIN_TRACK_FRAMES:
         return
 

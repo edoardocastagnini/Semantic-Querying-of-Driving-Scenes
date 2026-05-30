@@ -3,7 +3,7 @@ INPUT_VIDEO  = "videos/ny_3_cut.mp4"
 OUTPUT_VIDEO = "outputs/output_crossing_open_vocab_seg.mp4"
 OUTPUT_JSON  = "outputs/output_crossing_open_vocab_seg.json"
 
-# ── Query semantiche CLIP ────────────────────────────────────────────────────
+# ── CLIP semantic queries ────────────────────────────────────────────────────
 QUERIES = [
     "a child",
     "a work truck",
@@ -23,7 +23,7 @@ HUMAN_QUERY_PROTOTYPES = [
 ]
 HUMAN_QUERY_THRESHOLD = 0.85
 
-# ── Modelli ──────────────────────────────────────────────────────────────────
+# ── Models ──────────────────────────────────────────────────────────────────
 YOLO_MODEL      = "train-segment/weights/best.pt"
 TRAFFIC_SIGN_MODEL = ""#"sign_detection_model_finetuned.pt"  
 CLIP_MODEL      = "ViT-B-32"
@@ -66,8 +66,8 @@ TRAFFIC_SIGN_CLASS_NAMES = {
     25: "Parking",
 }
 
-# Seleziona una o piu classi cartelli. Accetta id interi o nomi esatti.
-# Esempi: [13, 22, "Speed Limit 50"] oppure [] per tutte le classi.
+# Select one or more sign classes, either by their ID or the class name.
+# Exmaple: [13, 22, "Speed Limit 50"] or [] for all the classes.
 TRAFFIC_SIGN_CLASSES = [0,1, 13, 25, 24, 20, 16]
 TRAFFIC_SIGN_CONF    = 0.25
 TRAFFIC_SIGN_IOU     = 0.45

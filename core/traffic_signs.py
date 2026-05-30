@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+"""
+core/traffic_signs.py
+================
+For handling traffic sign detection.
+"""
+
 from config.settings import (
     TRAFFIC_SIGN_CLASS_NAMES, TRAFFIC_SIGN_CLASSES,
     TRAFFIC_SIGN_BOX_EMA_KEEP, TRAFFIC_SIGN_MIN_HITS_TO_DRAW,
@@ -95,6 +102,16 @@ TRAFFIC_SIGN_ROUTE_GROUPS = {
 
 
 def normalize_query(query: str) -> str:
+    """
+    Normalizes the user query. Replaces symbols ("-", "_", "/") with whitespaces.
+
+    Parameters:
+        query (str): not-normalized user query
+
+    Returns:
+        str: normalized query
+    """
+
     normalized = str(query).strip().lower()
     for char in "-_/":
         normalized = normalized.replace(char, " ")
@@ -124,6 +141,13 @@ def traffic_sign_classes_for_query(query: str) -> list[int] | None:
 
 
 def build_traffic_sign_query_routes(queries: list[str]) -> dict[str, list[int]]:
+    """
+    Builds traffic sign query routing.
+
+    Parameters:
+        queries (list): list of queries
+    """
+
     routes = {}
     for query in queries:
         class_ids = traffic_sign_classes_for_query(query)

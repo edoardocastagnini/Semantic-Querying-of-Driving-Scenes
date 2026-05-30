@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+"""
+core/tracking.py
+================
+Handles object tracking.
+"""
+
 from collections import defaultdict, deque
 
 from config.settings import (
@@ -9,7 +16,13 @@ from core.geometry import center_distance_norm, box_iou
 
 
 def create_track_state() -> dict:
-    """Initializes a new track state dictionary with default values."""
+    """
+    Initializes a new track state dictionary with default values.
+    
+    Returns: 
+        dict: new track state
+    """
+    
     return {
         "track_id": None,
         "reid_root_id": None,
@@ -60,8 +73,18 @@ def maybe_link_to_recent_lost(track_id: int, state: dict,
                                recently_lost_tracks: list) -> None:
     """
     Tries to link a newly created track to a recently lost track for re-identification. Compares the new track's last box
-    with recently lost tracks using a combination of normalized center distance and IoU, and optionally requiring the same best query. If a good match is found, it transfers the reid_root_id and counting history to the new track state. Modifica `state` in-place.
+    with recently lost tracks using a combination of normalized center distance and IoU, and optionally requiring the same best query. 
+    If a good match is found, it transfers the reid_root_id and counting history to the new track state. Modifies `state` in-place.
+    
+    Parameters:
+        track_id (int): id of the track
+        state (dict): current state
+        frame_w (int): frame width
+        frame_h (int): frame height
+        current_frame_idx (int): current frame index
+        recently_lost_tracks (list): list of recently lost tracks
     """
+
     best_idx = None
     best_score = -999.0
 
@@ -94,8 +117,17 @@ def maybe_link_to_recent_lost(track_id: int, state: dict,
 def cleanup_tracks(current_frame_idx: int, tracks: dict,
                    recently_lost_tracks: list) -> None:
     """
-    Removes stale tracks that haven't been seen for more than MAX_TRACK_AGE frames. Before removing, it saves relevant info in recently_lost_tracks for potential re-identification. Also cleans up recently_lost_tracks to only keep entries within the KEEP_LOST_TRACKS_FOR window. Modifica `tracks` e `recently_lost_tracks` in-place.
+    Removes stale tracks that haven't been seen for more than MAX_TRACK_AGE frames. 
+    Before removing, it saves relevant info in recently_lost_tracks for potential re-identification. 
+    Also cleans up recently_lost_tracks to only keep entries within the KEEP_LOST_TRACKS_FOR window. 
+    Modifies `tracks` and `recently_lost_tracks` in-place.
+
+    Parameters:
+        current_frame_idx (int): current frame index
+        tracks (dict):
+        recently_lost_tracks (list):
     """
+
     stale = [tid for tid, s in tracks.items()
              if current_frame_idx - s["last_seen"] > MAX_TRACK_AGE]
 

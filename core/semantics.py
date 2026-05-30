@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+"""
+core/semantics.py
+================
+Handles object detection and matching.
+"""
+
 import numpy as np
 from collections import defaultdict
 
@@ -13,12 +20,20 @@ from core.geometry import normalized_center
 
 def is_valid_match(scores: dict, negative_scores: dict | None = None) -> tuple[bool, str | None, float]:
     """
-    If scores is empty, returns False, None, -1.0.
-    Otherwise, checks if the best score is above CLIP_SIM_THRESHOLD and sufficiently better than the second best.
-    Returns (is_valid, best_query, best_score).
+    Checks if the best score is above CLIP_SIM_THRESHOLD and sufficiently better than the second best.
+    Otherwise returns a tuple (False, None, -1.0)
+    
+    Parameters:
+        scores (dict): CLIP output scores
+        negative_scores (dict | None): CLIP negative scores
+
+    Returns:
+        boolean, str, float : (is_valid, best_query, best_score)
     """
+
     if not scores:
         return False, None, -1.0
+    
     sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
     best_query, best_score = sorted_scores[0]
     if best_score < CLIP_SIM_THRESHOLD:
@@ -34,8 +49,17 @@ def is_valid_match(scores: dict, negative_scores: dict | None = None) -> tuple[b
     return True, best_query, best_score
 
 
-def dominant_query_fraction(hist) -> tuple[str | None, float]:
-    """Returns the most frequent query in the history and its fraction."""
+def dominant_query_fraction(hist: list) -> tuple[str | None, float]:
+    """
+    Returns the most frequent query in the history and its fraction.
+    
+    Parameters:
+        hist (list): score history
+    
+    Returns:
+        (str, float): key of the most frequent query and its score
+    """
+
     valid = [q for q in hist if q is not None]
     if not valid:
         return None, 0.0
@@ -44,7 +68,16 @@ def dominant_query_fraction(hist) -> tuple[str | None, float]:
 
 
 def is_mature_for_count(state: dict) -> bool:
-    """True if the track has enough history, confidence and label consistency to be counted."""
+    """
+    Determines whether a track has enough values for processing.
+
+    Parameters:
+        state (dict): track
+
+    Returns:
+        bool: True if the track has enough history, confidence and label consistency to be counted
+    """
+
     if state["frames_seen"] < MIN_FRAMES_TO_COUNT:
         return False
     if len(state["conf_history"]) < min(10, CONF_HISTORY_LEN):
@@ -59,13 +92,23 @@ def is_mature_for_count(state: dict) -> bool:
 
 def try_count(query: str, cx_norm: float, cy_norm: float,
               current_frame: int, count_registry: dict,
-              counters: dict, anti_double_key=None) -> bool:
+              counters: dict, anti_double_key: int = None) -> bool:
     """
     Tries to count a track for the given query. Checks the cooldown registry to prevent double counting.
 
+    Parameters:
+        query (str): input query
+        cx_norm (float): normalized center x coordinate
+        cy_norm (float): normalized center y coordinate
+        current_frame (int): frame index
+        count_registry (dict): cooldown registry for double counting prevention
+        counters (dict): dict with counters of detected objects
+        anti_double_key (int): anti double key for double counting prevention 
+
     Returns:
-        True if the count was registered.
+        True if the count was registered, False if otherwise.
     """
+
     count_registry[query] = [
         (f, x, y, k) for f, x, y, k in count_registry[query]
         if current_frame - f <= COUNT_COOLDOWN_FRAMES
@@ -84,7 +127,19 @@ def try_count(query: str, cx_norm: float, cy_norm: float,
 def maybe_count_track(state: dict, frame_w: int, frame_h: int,
                       current_frame_idx: int, count_registry: dict,
                       counters: dict) -> None:
-    """Counts the track if it has a valid matched query and is mature enough, using try_count to check cooldowns."""
+    """
+    Counts the track if it has a valid matched query and is mature enough, using try_count to check cooldowns.
+    
+    Parameters:
+        state (dict):
+        frame_w (int): frame width
+        frame_h (int): frame height
+        current_frame_idx (int): index of current frame
+        count_registry (dict): cooldown registry for double counting prevention
+        counters (dict): dict with counters of detected objects
+
+    """
+
     if state["counted_once"] or not state["matched_queries"]:
         return
     if not is_mature_for_count(state):
@@ -108,7 +163,18 @@ def update_semantics(state: dict, raw_scores: dict, frame_w: int, frame_h: int,
     """
     Update the semantic state of a track based on new CLIP raw scores. Applies exponential moving average to smooth scores,
     updates positive hit counts, and determines matched queries. Also tries to count the track if it becomes mature enough.
+    
+    Parameters:
+        state (dict): sematic state
+        raw_scores (dict): CLIP scores
+        frame_w (int): frame width 
+        frame_h (int): frame height
+        current_frame_idx (int): index of current frame 
+        count_registry (dict): for double count prevention
+        counters (dict): positive hit count
+        negative_scores (dict | None): 
     """
+
     matched = []
     is_valid, _, _ = is_valid_match(raw_scores, negative_scores=negative_scores)
 
