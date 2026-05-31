@@ -21,7 +21,7 @@ HUMAN_QUERY_PROTOTYPES = [
 HUMAN_QUERY_THRESHOLD = 0.85
 
 # ── Models ──────────────────────────────────────────────────────────────────
-YOLO_MODEL      = "train-segment/weights/best.pt"
+YOLO_MODEL      = "yolo26m-finetuned-segmentation.pt"
 TRAFFIC_SIGN_MODEL = "sign_detection_model_finetuned.pt"  
 CLIP_MODEL      = "ViT-B-32"
 CLIP_PRETRAINED = "laion2b_s34b_b79k"
