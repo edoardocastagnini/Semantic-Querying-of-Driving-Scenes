@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+"""
+io_utils/video_io.py
+================
+Handles video input and output.
+"""
+
 import os
 import cv2
 
@@ -6,9 +13,13 @@ from config.settings import INPUT_VIDEO, OUTPUT_VIDEO
 
 def setup_capture() -> tuple[cv2.VideoCapture, dict]:
     """
-    Opens the input video and retrieves its properties. Returns a tuple of (VideoCapture object, video_info dict).
+    Opens the input video and retrieves its properties.
     Raises an error if the video cannot be opened.
+
+    Returns:
+        tuple: (VideoCapture object, video_info dict)
     """
+
     cap = cv2.VideoCapture(INPUT_VIDEO)
     if not cap.isOpened():
         raise RuntimeError(f"Cannot open video: {INPUT_VIDEO}")
@@ -30,7 +41,16 @@ def setup_capture() -> tuple[cv2.VideoCapture, dict]:
 
 
 def setup_writer(video_info: dict) -> cv2.VideoWriter:
-    """Creates and returns the VideoWriter for the output video."""
+    """
+    Creates and returns the VideoWriter for the output video.
+    
+    Parameters:
+        video_info (dict): information about video
+    
+    Returns:
+        cv2.VideoWriter: video writer
+    """
+
     os.makedirs(os.path.dirname(OUTPUT_VIDEO), exist_ok=True)
     writer = cv2.VideoWriter(
         OUTPUT_VIDEO,

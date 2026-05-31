@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+"""
+io_utils/output_writer.py
+================
+Handles writing to output.
+"""
+
 import os
 import json
 
@@ -46,7 +53,23 @@ def build_summary(device: str, query_type_cache: dict,
                   counters: dict, tracks: dict,
                   traffic_sign_frame_hits: dict | None = None,
                   query_routing: dict | None = None) -> dict:
-    """Builds a comprehensive summary dictionary of the processing run, including configuration, counters, and track states, ready to be serialized to JSON."""
+    """
+    Builds a comprehensive summary dictionary of the processing run, including configuration, counters, and track states, ready to be serialized to JSON.
+    
+    Parameters:
+        device (str): selected device ("cuda" | "mps" | "cpu")
+        query_type_cache (dict): query cache
+        frame_idx (int): frame index
+        fps_proc (float): frames per second metric
+        counters (dict): counters of detected objects
+        tracks (dict): dictionary with trackss
+        traffic_sign_frame_hits (dict): traffic sign frame hit counts
+        query_routing (dict): query routings
+
+    Returns:
+        dict: summary of all detections and system configuration
+    """
+    
     summary = {
         "input_video": INPUT_VIDEO,
         "output_video": OUTPUT_VIDEO,
@@ -171,7 +194,13 @@ def build_summary(device: str, query_type_cache: dict,
 
 
 def save_summary(summary: dict) -> None:
-    """Serializes and saves the summary to disk as JSON."""
+    """
+    Serializes and saves the summary to disk as JSON.
+    
+    Parameters:
+        summary (dict): logs to be saved
+    """
+    
     os.makedirs(os.path.dirname(OUTPUT_JSON), exist_ok=True)
     with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)

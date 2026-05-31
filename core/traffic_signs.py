@@ -162,6 +162,16 @@ def build_traffic_sign_query_routes(queries: list[str]) -> dict[str, list[int]]:
 
 
 def traffic_sign_text_label(label: str) -> str:
+    """
+    Modifies the traffic sign label for more descriptive ones.
+
+    Parameters:
+        label (str): traffic sign label
+    
+    Returns:
+        str: modified label
+    """
+
     label = str(label).strip()
     replacements = {
         "Green Light": "green traffic light",
@@ -228,7 +238,14 @@ def build_clip_traffic_sign_query_routes(queries: list[str], clip_model,
     """
     Uses CLIP text embeddings to decide which user queries should be handled by
     the secondary traffic-sign detector and which detector classes they need.
+
+    Parameters: 
+        queries (list[str]): user queries
+        clip_model: CLIP model
+        tokenizer : tokenizes the list into tokens
+        device (str): selected device ("cuda" | "mps" | "cpu")
     """
+
     class_features = _build_traffic_sign_class_features(clip_model, tokenizer, device)
     group_features = _build_traffic_sign_group_features(clip_model, tokenizer, device)
     negative_features = _build_route_negative_features(clip_model, tokenizer, device)
@@ -315,6 +332,18 @@ def build_clip_traffic_sign_query_routes(queries: list[str], clip_model,
 def traffic_sign_queries_for_class(class_id: int,
                                    query_routes: dict[str, list[int]],
                                    query_order: list[str]) -> list[str]:
+    """
+    Filters out only relevant traffic sign classes which are specified in the query routes.
+
+    Parameters:
+        class_id (int): class index
+        query_routes (dict): query routes
+        query_order (list): ordered queries
+    
+    Returns:
+        list(str): filtered traffic sign classes 
+    """
+
     return [
         query for query in query_order
         if query in query_routes and class_id in query_routes[query]
@@ -325,7 +354,14 @@ def selected_traffic_sign_class_ids(query_routes: dict[str, list[int]] | None = 
     """
     Converts TRAFFIC_SIGN_CLASSES into YOLO class ids.
     Returns None when the list is empty, meaning all traffic-sign classes.
+
+    Parameters:
+        query_routes (dict): query routes
+
+    Returns:
+        list: class ids or None
     """
+
     if query_routes:
         selected = sorted({class_id for ids in query_routes.values() for class_id in ids})
         return selected or None
@@ -352,6 +388,17 @@ def selected_traffic_sign_class_ids(query_routes: dict[str, list[int]] | None = 
 
 
 def traffic_sign_label(class_id: int, model_names=None) -> str:
+    """
+    For given class id, returns corresponding traffic sign label.
+
+    Parameters:
+        class_id (int): traffic sign class id
+        model_names(list): list of model names
+
+    Returns:
+        str: traffic_sign_label
+    """
+
     if class_id in TRAFFIC_SIGN_CLASS_NAMES:
         return TRAFFIC_SIGN_CLASS_NAMES[class_id]
     if model_names is not None and class_id in model_names:
@@ -359,8 +406,22 @@ def traffic_sign_label(class_id: int, model_names=None) -> str:
     return f"class {class_id}"
 
 
-def make_traffic_sign_detection(xyxy, class_id: int, conf: float, label: str,
+def make_traffic_sign_detection(xyxy: list, class_id: int, conf: float, label: str,
                                 matched_queries: list[str] | None = None) -> dict:
+    """
+    Creates a dictionary with information about detection.
+
+    Parameters:
+        xyxy (list): bounding box coordinates
+        class_id (int): class identifier
+        conf (float): confidence score
+        label (str): traffic sign label
+        matched_queries (list[str]): list of matched queries
+
+    Returns:
+        dict: containing information about traffic sign detection
+    """
+
     return {
         "box": [float(v) for v in xyxy],
         "class_id": int(class_id),
@@ -376,6 +437,16 @@ def update_traffic_sign_tracks(detections: list[dict], tracks: dict,
     Associates traffic-sign detections across frames and returns stable visual tracks.
     Matching is class-aware and uses IoU plus normalized center distance so small signs
     can still be linked when the box jitters by a few pixels.
+
+    Parameters:
+        detections (list[dict]): list of detections
+        tracks (dict): information about tracks
+        frame_idx (int): id of frame
+        frame_w (int): frame width
+        frame_h (int): frame height
+
+    Returns:
+        dict: updated detection tracks
     """
     matched_track_ids = set()
 
