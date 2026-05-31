@@ -1,4 +1,4 @@
-﻿# Computer Vision and Pattern Recognition - Project Group E 
+﻿# Computer Vision - Project Group E - Università della Svizzera Italiana
 
   
 
